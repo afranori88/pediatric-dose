@@ -1,0 +1,119 @@
+pip install django
+django-admin startproject PediatricDoseCalculator
+cd PediatricDoseCalculator
+python manage.py startapp dosage
+# dosage/models.py
+from django.db import models
+
+class Medication(models.Model):
+    name = models.CharField(max_length=100)
+    min_dose = models.FloatField()  # الجرعة الدنيا (ملغم/كغ)
+    max_dose = models.FloatField()  # الجرعة القصوى (ملغم/كغ)
+    dosage_interval = models.IntegerField()  # مدة الجرعة بالساعات
+
+    def __str__(self):
+        return self.name
+# dosage/views.py
+from django.shortcuts import render
+from .models import Medication
+
+def calculate_dose(request):
+    if request.method == 'POST':
+        medication_id = request.POST.get('medication')
+        weight = float(request.POST.get('weight'))
+        
+        medication = Medication.objects.get(id=medication_id)
+        min_dose = medication.min_dose * weight
+        max_dose = medication.max_dose * weight
+        
+        return render(request, 'result.html', {'medication': medication, 'min_dose': min_dose, 'max_dose': max_dose})
+
+    medications = Medication.objects.all()
+    return render(request, 'calculator.html', {'medications': medications})
+# PediatricDoseCalculator/urls.py
+from django.contrib import admin
+from django.urls import path
+from dosage import views
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('', views.calculate_dose, name='calculate_dose'),
+]
+<!-- dosage/templates/calculator.html -->
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>حساب جرعة الأطفال</title>
+</head>
+<body>
+    <h1>حساب جرعات الأدوية للأطفال</h1>
+    <form method="POST">
+        {% csrf_token %}
+        <label for="medication">اختر الدواء:</label>
+        <select name="medication" required>
+            {% for med in medications %}
+                <option value="{{ med.id }}">{{ med.name }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="weight">وزن الطفل (كغ):</label>
+        <input type="number" name="weight" step="0.1" required>
+        
+        <button type="submit">حساب الجرعة</button>
+    </form>
+</body>
+</html>
+<!-- dosage/templates/result.html -->
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+    <meta charset="UTF-8">
+    <title>نتائج الجرعة</title>
+</head>
+<body>
+    <h1>نتائج الجرعة لـ {{ medication.name }}</h1>
+    <p>الجرعة الدنيا: {{ min_dose }} ملغم</p>
+    <p>الجرعة القصوى: {{ max_dose }} ملغم</p>
+    <a href="{% url 'calculate_dose' %}">حساب جرعة جديدة</a>
+</body>
+</html>
+/* static/styles.css */
+body {
+    font-family: Arial, sans-serif;
+    background-color: #f4f4f4;
+    text-align: center;
+}
+
+h1 {
+    color: #333;
+}
+
+form {
+    background: #fff;
+    padding: 20px;
+    width: 300px;
+    margin: 20px auto;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+}
+
+label, input, select, button {
+    display: block;
+    width: 100%;
+    margin-bottom: 10px;
+}
+
+button {
+    background-color: #007bff;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+python manage.py migrate
+python manage.py runserver
